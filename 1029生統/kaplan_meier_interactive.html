@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kaplan-Meier 存活曲線與新藥臨床試驗統計分析</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #1e88e5;
+      --primary-light: #e3f2fd;
+      --primary-dark: #1565c0;
+      --control: #e53935;
+      --control-light: #ffebee;
+      --control-dark: #c62828;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --radius: 12px;
+      --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.04);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg);
+      color: var(--text-main);
+      line-height: 1.6;
+      padding: 24px;
+    }
+
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    header {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      color: white;
+      padding: 32px 36px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-lg);
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .header-title h1 {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 12px;
+      padding: 3px 10px;
+      border-radius: 9999px;
+      background: rgba(30, 136, 229, 0.25);
+      border: 1px solid rgba(147, 197, 253, 0.4);
+      color: #93c5fd;
+      font-weight: 600;
+    }
+
+    .header-title p {
+      color: #94a3b8;
+      font-size: 14px;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+      border: none;
+    }
+
+    .btn-primary {
+      background-color: var(--primary);
+      color: white;
+    }
+    .btn-primary:hover {
+      background-color: var(--primary-dark);
+    }
+
+    .btn-outline {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: white;
+    }
+    .btn-outline:hover {
+      background: rgba(255, 255, 255, 0.16);
+    }
+
+    /* Stats KPI Grid */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .kpi-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+    }
+    .kpi-card.blue::before { background: var(--primary); }
+    .kpi-card.red::before { background: var(--control); }
+    .kpi-card.purple::before { background: #8b5cf6; }
+    .kpi-card.amber::before { background: #f59e0b; }
+
+    .kpi-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+
+    .kpi-val {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+
+    .kpi-unit {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    .kpi-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* Main Chart Card */
+    .chart-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: var(--shadow);
+      margin-bottom: 24px;
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 16px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .chart-title h2 {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .chart-title p {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .controls-row {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .toggle-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-main);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .toggle-label input {
+      cursor: pointer;
+    }
+
+    /* SVG Chart */
+    .chart-wrapper {
+      position: relative;
+      width: 100%;
+      background: #ffffff;
+      border-radius: 8px;
+      overflow: visible;
+    }
+
+    svg.km-svg {
+      width: 100%;
+      height: 480px;
+      display: block;
+      font-family: inherit;
+    }
+
+    .grid-line {
+      stroke: #f1f5f9;
+      stroke-width: 1;
+    }
+
+    .axis-line {
+      stroke: #cbd5e1;
+      stroke-width: 1.5;
+    }
+
+    .axis-tick {
+      stroke: #94a3b8;
+      stroke-width: 1;
+    }
+
+    .axis-text {
+      font-size: 11px;
+      fill: #475569;
+      font-weight: 500;
+    }
+
+    .axis-label {
+      font-size: 13px;
+      font-weight: 700;
+      fill: #1e293b;
+    }
+
+    /* KM Step Curves */
+    .curve-step {
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      transition: stroke-width 0.2s ease;
+    }
+
+    .curve-group1 {
+      stroke: var(--primary);
+      stroke-width: 3.5;
+    }
+
+    .curve-group2 {
+      stroke: var(--control);
+      stroke-width: 3.5;
+      stroke-dasharray: 6 4;
+    }
+
+    .ci-ribbon {
+      transition: opacity 0.3s ease;
+    }
+
+    .censor-cross {
+      stroke: var(--primary);
+      stroke-width: 2.2;
+      stroke-linecap: round;
+      cursor: pointer;
+    }
+
+    .median-line {
+      stroke-dasharray: 4 4;
+      stroke-width: 1.5;
+    }
+
+    .hover-target {
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+    .hover-target:hover {
+      opacity: 1;
+    }
+
+    /* Tooltip */
+    #chart-tooltip {
+      position: absolute;
+      display: none;
+      pointer-events: none;
+      background: rgba(15, 23, 42, 0.95);
+      color: white;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+      z-index: 100;
+      line-height: 1.5;
+      min-width: 160px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(4px);
+    }
+
+    #chart-tooltip .tt-title {
+      font-weight: 700;
+      font-size: 13px;
+      margin-bottom: 4px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+      padding-bottom: 4px;
+    }
+
+    /* Risk Table */
+    .risk-table-container {
+      margin-top: 10px;
+      padding-top: 12px;
+      border-top: 1px dashed var(--border);
+    }
+
+    .risk-row {
+      display: flex;
+      align-items: center;
+      padding: 6px 0;
+      font-size: 12px;
+    }
+
+    .risk-row-label {
+      width: 180px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .risk-color-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .risk-cells {
+      flex: 1;
+      display: flex;
+      justify-content: space-between;
+      margin-left: 55px; /* aligns with chart origin */
+      margin-right: 40px;
+    }
+
+    .risk-cell {
+      width: 32px;
+      text-align: center;
+      font-weight: 700;
+      font-size: 12px;
+    }
+
+    /* Two Column Section */
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 900px) {
+      .content-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .card h3 {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 14px;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Tables */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .data-table th {
+      background: #f8fafc;
+      color: #475569;
+      font-weight: 600;
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .data-table td {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      color: #334155;
+    }
+
+    .data-table tr:hover td {
+      background: #f1f5f9;
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .tag-event {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    .tag-censor {
+      background: #dcfce7;
+      color: #15803d;
+    }
+
+    /* Analysis Interpretation Box */
+    .analysis-text {
+      font-size: 14px;
+      color: #334155;
+      line-height: 1.7;
+    }
+
+    .analysis-text p {
+      margin-bottom: 12px;
+    }
+
+    .callout {
+      background: #f0f9ff;
+      border-left: 4px solid var(--primary);
+      padding: 14px 18px;
+      border-radius: 0 8px 8px 0;
+      margin: 16px 0;
+      font-size: 13px;
+    }
+
+    .callout-title {
+      font-weight: 700;
+      color: #0369a1;
+      margin-bottom: 4px;
+    }
+
+    footer {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13px;
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <!-- Header -->
+  <header>
+    <div class="header-title">
+      <h1>
+        新藥臨床試驗 Kaplan-Meier 存活分析報告
+        <span class="badge">Biostatistics 1029</span>
+      </h1>
+      <p>數據來源：Survival test example.xlsx ｜ 樣本規模：N = 12 ｜ 追蹤時間：最長 7.2 個月</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-outline" onclick="window.print()">
+        🖨️ 列印 / 另存 PDF
+      </button>
+      <button class="btn btn-primary" onclick="exportDataCSV()">
+        📥 匯出存活摘要 CSV
+      </button>
+    </div>
+  </header>
+
+  <!-- KPI Cards -->
+  <div class="kpi-grid">
+    <div class="kpi-card blue">
+      <div class="kpi-label">Group 1 (新藥組) 中位存活</div>
+      <div class="kpi-val">6.50 <span class="kpi-unit">個月</span></div>
+      <div class="kpi-sub">95% CI: [5.0, NA] ｜ 3 事件 / 3 設限</div>
+    </div>
+
+    <div class="kpi-card red">
+      <div class="kpi-label">Group 2 (對照組) 中位存活</div>
+      <div class="kpi-val">5.25 <span class="kpi-unit">個月</span></div>
+      <div class="kpi-sub">95% CI: [5.0, NA] ｜ 6 事件 / 0 設限</div>
+    </div>
+
+    <div class="kpi-card purple">
+      <div class="kpi-label">Log-Rank 檢定 (對數秩檢定)</div>
+      <div class="kpi-val">p = 0.129 <span class="kpi-unit">(&chi;² = 2.30)</span></div>
+      <div class="kpi-sub">自由度 df = 1 ｜ 兩組未達統計顯著差異</div>
+    </div>
+
+    <div class="kpi-card amber">
+      <div class="kpi-label">Cox 比例風險比 (HR)</div>
+      <div class="kpi-val">0.36 <span class="kpi-unit">(新藥 vs 對照)</span></div>
+      <div class="kpi-sub">95% CI: [0.09, 1.45] ｜ 降低 64% 事件風險</div>
+    </div>
+  </div>
+
+  <!-- Main Kaplan-Meier Chart -->
+  <div class="chart-card">
+    <div class="chart-header">
+      <div class="chart-title">
+        <h2>Kaplan-Meier 存活率曲線圖 (Survival Probability Curves)</h2>
+        <p>實線為新藥組 (Group 1)，虛線為對照組 (Group 2)，"+" 標記代表受試者設限 (Censored)</p>
+      </div>
+      <div class="controls-row">
+        <label class="toggle-label">
+          <input type="checkbox" id="toggle-ci" onchange="toggleCI()">
+          顯示 95% 信賴區間 (95% CI)
+        </label>
+        <label class="toggle-label">
+          <input type="checkbox" id="toggle-median" checked onchange="toggleMedian()">
+          顯示中位存活標記線 (Median lines)
+        </label>
+        <label class="toggle-label">
+          <input type="checkbox" id="toggle-censor" checked onchange="toggleCensor()">
+          顯示設限標記 (+)
+        </label>
+      </div>
+    </div>
+
+    <div class="chart-wrapper" id="chart-wrapper">
+      <div id="chart-tooltip"></div>
+      <svg class="km-svg" id="kmSvg" viewBox="0 0 1000 480" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+
+    <!-- Number at Risk Table -->
+    <div class="risk-table-container">
+      <div style="font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">
+        在險受試者人數 (Number at Risk):
+      </div>
+      <div class="risk-row">
+        <div class="risk-row-label">
+          <span class="risk-color-dot" style="background: var(--primary);"></span>
+          Group 1 (新藥組)
+        </div>
+        <div class="risk-cells" id="risk-cells-g1">
+          <!-- Filled by JS -->
+        </div>
+      </div>
+      <div class="risk-row">
+        <div class="risk-row-label">
+          <span class="risk-color-dot" style="background: var(--control);"></span>
+          Group 2 (對照組)
+        </div>
+        <div class="risk-cells" id="risk-cells-g2">
+          <!-- Filled by JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Two Column Layout: Data Table + Clinical Interpretation -->
+  <div class="content-grid">
+    <!-- Raw Data & Life Table -->
+    <div class="card">
+      <h3>📋 試驗受試者原始數據 (Trial Raw Data)</h3>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>受試者 ID</th>
+            <th>組別 (Group)</th>
+            <th>追蹤月份 (Months)</th>
+            <th>狀態 (Status)</th>
+            <th>說明</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>A</strong></td>
+            <td>Group 1 (新藥組)</td>
+            <td>5.0</td>
+            <td><span class="tag tag-event">Event (1)</span></td>
+            <td>發生事件 (疾病復發/死亡)</td>
+          </tr>
+          <tr>
+            <td><strong>B</strong></td>
+            <td>Group 1 (新藥組)</td>
+            <td>7.0</td>
+            <td><span class="tag tag-censor">Censored (0)</span></td>
+            <td>設限 (未發生事件/失聯)</td>
+          </tr>
+          <tr>
+            <td><strong>C</strong></td>
+            <td>Group 1 (新藥組)</td>
+            <td>6.0</td>
+            <td><span class="tag tag-censor">Censored (0)</span></td>
+            <td>設限 (未發生事件/失聯)</td>
+          </tr>
+          <tr>
+            <td><strong>D</strong></td>
+            <td>Group 1 (新藥組)</td>
+            <td>4.5</td>
+            <td><span class="tag tag-event">Event (1)</span></td>
+            <td>發生事件</td>
+          </tr>
+          <tr>
+            <td><strong>E</strong></td>
+            <td>Group 1 (新藥組)</td>
+            <td>7.2</td>
+            <td><span class="tag tag-censor">Censored (0)</span></td>
+            <td>設限 (研究截止前仍存活)</td>
+          </tr>
+          <tr>
+            <td><strong>F</strong></td>
+            <td>Group 1 (新藥組)</td>
+            <td>6.5</td>
+            <td><span class="tag tag-event">Event (1)</span></td>
+            <td>發生事件</td>
+          </tr>
+          <tr style="border-top: 2px solid var(--border);">
+            <td><strong>c</strong></td>
+            <td>Group 2 (對照組)</td>
+            <td>4.3</td>
+            <td><span class="tag tag-event">Event (1)</span></td>
+            <td>發生事件</td>
+          </tr>
+          <tr>
+            <td><strong>a</strong></td>
+            <td>Group 2 (對照組)</td>
+            <td>5.0</td>
+            <td><span class="tag tag-event">Event (1)</span></td>
+            <td>發生事件</td>
+          </tr>
+          <tr>
+            <td><strong>f</strong></td>
+            <td>Group 2 (對照組)</td>
+            <td>5.0</td>
+            <td><span class="tag tag-event">Event (1)</span></td>
+            <td>發生事件</td>
+          </tr>
+          <tr>
+            <td><strong>d</strong></td>
+            <td>Group 2 (對照組)</td>
+            <td>5.5</td>
+            <td><span class="tag tag-event">Event (1)</span></td>
+            <td>發生事件</td>
+          </tr>
+          <tr>
+            <td><strong>e</strong></td>
+            <td>Group 2 (對照組)</td>
+            <td>6.4</td>
+            <td><span class="tag tag-event">Event (1)</span></td>
+            <td>發生事件</td>
+          </tr>
+          <tr>
+            <td><strong>b</strong></td>
+            <td>Group 2 (對照組)</td>
+            <td>7.0</td>
+            <td><span class="tag tag-event">Event (1)</span></td>
+            <td>發生事件 (全員全數發生事件)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Biostatistical Interpretation -->
+    <div class="card">
+      <h3>🔬 生物統計學與臨床意義解讀</h3>
+      <div class="analysis-text">
+        <p>
+          <strong>1. 中位存活時間 (Median Overall Survival)：</strong><br>
+          新藥組 (Group 1) 的中位存活時間為 <strong>6.50 個月</strong>，顯著長於對照組 (Group 2) 的 <strong>5.25 個月</strong>，在新藥組中觀察到存活時間延長達 <strong>1.25 個月</strong>。
+        </p>
+
+        <p>
+          <strong>2. 事件發生率與設限 (Event Rate & Censoring)：</strong><br>
+          對照組 6 位受試者全數發生終點事件（事件率 100%），最晚在第 7.0 個月全數發生事件；而新藥組 6 位受試者中僅有 3 位發生事件（事件率 50%），其餘 3 位受試者（ID: B、C、E）在追蹤第 6.0、7.0、7.2 個月時仍處於設限存活狀態，存活曲線在研究截止時仍維持在 <strong>44.4%</strong>。
+        </p>
+
+        <div class="callout">
+          <div class="callout-title">💡 統計顯著性 (Statistical Significance) vs. 樣本數限制：</div>
+          Log-Rank 檢定結果顯示 <strong>&chi;² = 2.30, p = 0.1291</strong>（p &gt; 0.05，未達統計顯著性水準）。
+          雖然 Cox 風險比 HR = 0.356 代表新藥組風險降低了 64.4%，但因本試驗樣本量較小（每組僅 n = 6，總計 12 人），檢定力（Statistical Power）不足以將此顯著的臨床存活優勢轉化為小於 0.05 的 p 值。若擴大試驗規模（例如每組 n &ge; 30），此等級之存活差異極可能達到極高度統計顯著性。
+        </div>
+
+        <p>
+          <strong>3. Kaplan-Meier 乘積極限法計算原理：</strong><br>
+          存活機率估計公式為：<br>
+          <code style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 13px;">S(t) = &prod; [1 - (d_i / n_i)]</code><br>
+          標準誤以 Greenwood 公式計算，新藥組在 4.5 個月存活率 83.3%、5.0 個月 66.7%、6.5 個月 44.4%。
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Full Life Table -->
+  <div class="card" style="margin-bottom: 24px;">
+    <h3>📊 詳細 Kaplan-Meier 存活估計表 (Life Table)</h3>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>組別</th>
+          <th>時間 (Time)</th>
+          <th>在險人數 (N.Risk)</th>
+          <th>事件數 (Events)</th>
+          <th>設限數 (Censors)</th>
+          <th>存活機率 S(t)</th>
+          <th>標準誤 (SE)</th>
+          <th>95% 信賴下限</th>
+          <th>95% 信賴上限</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="background: rgba(30, 136, 229, 0.05);">
+          <td><strong>Group 1 (新藥組)</strong></td>
+          <td>4.5 個月</td>
+          <td>6</td>
+          <td>1</td>
+          <td>0</td>
+          <td><strong>83.3%</strong> (0.8333)</td>
+          <td>0.152</td>
+          <td>58.3%</td>
+          <td>100%</td>
+        </tr>
+        <tr style="background: rgba(30, 136, 229, 0.05);">
+          <td><strong>Group 1 (新藥組)</strong></td>
+          <td>5.0 個月</td>
+          <td>5</td>
+          <td>1</td>
+          <td>0</td>
+          <td><strong>66.7%</strong> (0.6667)</td>
+          <td>0.192</td>
+          <td>37.9%</td>
+          <td>100%</td>
+        </tr>
+        <tr style="background: rgba(30, 136, 229, 0.05);">
+          <td><strong>Group 1 (新藥組)</strong></td>
+          <td>6.0 個月</td>
+          <td>4</td>
+          <td>0</td>
+          <td>1 (ID: C)</td>
+          <td><strong>66.7%</strong> (0.6667)</td>
+          <td>0.192</td>
+          <td>37.9%</td>
+          <td>100%</td>
+        </tr>
+        <tr style="background: rgba(30, 136, 229, 0.05);">
+          <td><strong>Group 1 (新藥組)</strong></td>
+          <td>6.5 個月</td>
+          <td>3</td>
+          <td>1</td>
+          <td>0</td>
+          <td><strong>44.4%</strong> (0.4444)</td>
+          <td>0.222</td>
+          <td>16.7%</td>
+          <td>100%</td>
+        </tr>
+        <tr style="background: rgba(30, 136, 229, 0.05);">
+          <td><strong>Group 1 (新藥組)</strong></td>
+          <td>7.0 個月</td>
+          <td>2</td>
+          <td>0</td>
+          <td>1 (ID: B)</td>
+          <td><strong>44.4%</strong> (0.4444)</td>
+          <td>0.222</td>
+          <td>16.7%</td>
+          <td>100%</td>
+        </tr>
+        <tr style="background: rgba(30, 136, 229, 0.05);">
+          <td><strong>Group 1 (新藥組)</strong></td>
+          <td>7.2 個月</td>
+          <td>1</td>
+          <td>0</td>
+          <td>1 (ID: E)</td>
+          <td><strong>44.4%</strong> (0.4444)</td>
+          <td>0.222</td>
+          <td>16.7%</td>
+          <td>100%</td>
+        </tr>
+
+        <tr style="background: rgba(229, 57, 53, 0.05); border-top: 2px solid var(--border);">
+          <td><strong>Group 2 (對照組)</strong></td>
+          <td>4.3 個月</td>
+          <td>6</td>
+          <td>1</td>
+          <td>0</td>
+          <td><strong>83.3%</strong> (0.8333)</td>
+          <td>0.152</td>
+          <td>58.3%</td>
+          <td>100%</td>
+        </tr>
+        <tr style="background: rgba(229, 57, 53, 0.05);">
+          <td><strong>Group 2 (對照組)</strong></td>
+          <td>5.0 個月</td>
+          <td>5</td>
+          <td>2</td>
+          <td>0</td>
+          <td><strong>50.0%</strong> (0.5000)</td>
+          <td>0.204</td>
+          <td>22.5%</td>
+          <td>100%</td>
+        </tr>
+        <tr style="background: rgba(229, 57, 53, 0.05);">
+          <td><strong>Group 2 (對照組)</strong></td>
+          <td>5.5 個月</td>
+          <td>3</td>
+          <td>1</td>
+          <td>0</td>
+          <td><strong>33.3%</strong> (0.3333)</td>
+          <td>0.192</td>
+          <td>10.8%</td>
+          <td>100%</td>
+        </tr>
+        <tr style="background: rgba(229, 57, 53, 0.05);">
+          <td><strong>Group 2 (對照組)</strong></td>
+          <td>6.4 個月</td>
+          <td>2</td>
+          <td>1</td>
+          <td>0</td>
+          <td><strong>16.7%</strong> (0.1667)</td>
+          <td>0.152</td>
+          <td>2.8%</td>
+          <td>99.7%</td>
+        </tr>
+        <tr style="background: rgba(229, 57, 53, 0.05);">
+          <td><strong>Group 2 (對照組)</strong></td>
+          <td>7.0 個月</td>
+          <td>1</td>
+          <td>1</td>
+          <td>0</td>
+          <td><strong>0.0%</strong> (0.0000)</td>
+          <td>NaN</td>
+          <td>NA</td>
+          <td>NA</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <footer>
+    <p>Kaplan-Meier Survival Analysis Report ｜ Generated with R (survival, ggplot2) & Antigravity</p>
+  </footer>
+</div>
+
+<script>
+  // Kaplan-Meier coordinates data
+  const g1Data = [
+    { t: 0, s: 1.0, lower: 1.0, upper: 1.0, event: 0, censor: 0, risk: 6, id: '' },
+    { t: 4.5, s: 0.8333, lower: 0.5827, upper: 1.0, event: 1, censor: 0, risk: 6, id: 'D' },
+    { t: 5.0, s: 0.6667, lower: 0.3786, upper: 1.0, event: 1, censor: 0, risk: 5, id: 'A' },
+    { t: 6.0, s: 0.6667, lower: 0.3786, upper: 1.0, event: 0, censor: 1, risk: 4, id: 'C' },
+    { t: 6.5, s: 0.4444, lower: 0.1668, upper: 1.0, event: 1, censor: 0, risk: 3, id: 'F' },
+    { t: 7.0, s: 0.4444, lower: 0.1668, upper: 1.0, event: 0, censor: 1, risk: 2, id: 'B' },
+    { t: 7.2, s: 0.4444, lower: 0.1668, upper: 1.0, event: 0, censor: 1, risk: 1, id: 'E' }
+  ];
+
+  const g2Data = [
+    { t: 0, s: 1.0, lower: 1.0, upper: 1.0, event: 0, censor: 0, risk: 6, id: '' },
+    { t: 4.3, s: 0.8333, lower: 0.5827, upper: 1.0, event: 1, censor: 0, risk: 6, id: 'c' },
+    { t: 5.0, s: 0.5000, lower: 0.2246, upper: 1.0, event: 2, censor: 0, risk: 5, id: 'a, f' },
+    { t: 5.5, s: 0.3333, lower: 0.1075, upper: 1.0, event: 1, censor: 0, risk: 3, id: 'd' },
+    { t: 6.4, s: 0.1667, lower: 0.0278, upper: 0.9974, event: 1, censor: 0, risk: 2, id: 'e' },
+    { t: 7.0, s: 0.0000, lower: 0.0, upper: 0.0, event: 1, censor: 0, risk: 1, id: 'b' }
+  ];
+
+  // Number at risk at times 0, 1, 2, 3, 4, 5, 6, 7, 8
+  const riskTimes = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+  const g1Risk = [6, 6, 6, 6, 6, 5, 4, 2, 0];
+  const g2Risk = [6, 6, 6, 6, 6, 5, 2, 1, 0];
+
+  // SVG Chart rendering
+  const svg = document.getElementById('kmSvg');
+  const tooltip = document.getElementById('chart-tooltip');
+  const chartWrapper = document.getElementById('chart-wrapper');
+
+  // Chart dimensions inside SVG coordinate system (1000 x 480)
+  const margin = { top: 30, right: 40, bottom: 50, left: 70 };
+  const width = 1000 - margin.left - margin.right;
+  const height = 480 - margin.top - margin.bottom;
+
+  const tMax = 8.0;
+
+  function xScale(t) {
+    return margin.left + (t / tMax) * width;
+  }
+
+  function yScale(s) {
+    return margin.top + (1 - s) * height;
+  }
+
+  function renderChart() {
+    let html = '';
+
+    // 1. Grid lines and Y-axis ticks
+    for (let s = 0; s <= 1.01; s += 0.2) {
+      const y = yScale(s);
+      html += `<line x1="${margin.left}" y1="${y}" x2="${margin.left + width}" y2="${y}" class="grid-line" />`;
+      html += `<text x="${margin.left - 12}" y="${y + 4}" text-anchor="end" class="axis-text">${Math.round(s * 100)}%</text>`;
+    }
+
+    // 2. Grid lines and X-axis ticks
+    for (let t = 0; t <= tMax; t += 1) {
+      const x = xScale(t);
+      html += `<line x1="${x}" y1="${margin.top}" x2="${x}" y2="${margin.top + height}" class="grid-line" />`;
+      html += `<line x1="${x}" y1="${margin.top + height}" x2="${x}" y2="${margin.top + height + 6}" class="axis-tick" />`;
+      html += `<text x="${x}" y="${margin.top + height + 22}" text-anchor="middle" class="axis-text">${t}</text>`;
+    }
+
+    // Axes
+    html += `<line x1="${margin.left}" y1="${margin.top + height}" x2="${margin.left + width}" y2="${margin.top + height}" class="axis-line" />`;
+    html += `<line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${margin.top + height}" class="axis-line" />`;
+
+    // Axis Labels
+    html += `<text x="${margin.left + width / 2}" y="${margin.top + height + 42}" text-anchor="middle" class="axis-label">Follow-up Months (追蹤月份)</text>`;
+    html += `<text transform="rotate(-90)" x="${-(margin.top + height / 2)}" y="${margin.left - 48}" text-anchor="middle" class="axis-label">Survival Probability (存活率)</text>`;
+
+    // 50% Median dashed line
+    const y50 = yScale(0.5);
+    html += `<line x1="${margin.left}" y1="${y50}" x2="${margin.left + width}" y2="${y50}" stroke="#94a3b8" stroke-dasharray="5 5" stroke-width="1.2" />`;
+    html += `<text x="${margin.left + width - 10}" y="${y50 - 6}" text-anchor="end" fill="#64748b" font-size="11" font-weight="600">50% Survival</text>`;
+
+    // 3. Confidence Interval Ribbons
+    // G1 Ribbon
+    let g1RibbonD = `M ${xScale(0)} ${yScale(1.0)}`;
+    for (let i = 1; i < g1Data.length; i++) {
+      const prev = g1Data[i - 1];
+      const curr = g1Data[i];
+      g1RibbonD += ` L ${xScale(curr.t)} ${yScale(prev.upper)}`;
+      g1RibbonD += ` L ${xScale(curr.t)} ${yScale(curr.upper)}`;
+    }
+    // bottom edge back
+    for (let i = g1Data.length - 1; i >= 1; i--) {
+      const prev = g1Data[i - 1];
+      const curr = g1Data[i];
+      g1RibbonD += ` L ${xScale(curr.t)} ${yScale(curr.lower)}`;
+      g1RibbonD += ` L ${xScale(prev.t)} ${yScale(curr.lower)}`;
+    }
+    g1RibbonD += ` L ${xScale(0)} ${yScale(1.0)} Z`;
+
+    html += `<path id="ci-g1" class="ci-ribbon" d="${g1RibbonD}" fill="rgba(30, 136, 229, 0.15)" style="display: none;" />`;
+
+    // G2 Ribbon
+    let g2RibbonD = `M ${xScale(0)} ${yScale(1.0)}`;
+    for (let i = 1; i < g2Data.length; i++) {
+      const prev = g2Data[i - 1];
+      const curr = g2Data[i];
+      g2RibbonD += ` L ${xScale(curr.t)} ${yScale(prev.upper)}`;
+      g2RibbonD += ` L ${xScale(curr.t)} ${yScale(curr.upper)}`;
+    }
+    for (let i = g2Data.length - 1; i >= 1; i--) {
+      const prev = g2Data[i - 1];
+      const curr = g2Data[i];
+      g2RibbonD += ` L ${xScale(curr.t)} ${yScale(curr.lower)}`;
+      g2RibbonD += ` L ${xScale(prev.t)} ${yScale(curr.lower)}`;
+    }
+    g2RibbonD += ` L ${xScale(0)} ${yScale(1.0)} Z`;
+
+    html += `<path id="ci-g2" class="ci-ribbon" d="${g2RibbonD}" fill="rgba(229, 57, 53, 0.15)" style="display: none;" />`;
+
+    // 4. Build Step Curves
+    function buildStepPath(data) {
+      let d = `M ${xScale(0)} ${yScale(1.0)}`;
+      for (let i = 1; i < data.length; i++) {
+        const prev = data[i - 1];
+        const curr = data[i];
+        d += ` L ${xScale(curr.t)} ${yScale(prev.s)}`;
+        d += ` L ${xScale(curr.t)} ${yScale(curr.s)}`;
+      }
+      return d;
+    }
+
+    html += `<path d="${buildStepPath(g1Data)}" class="curve-step curve-group1" />`;
+    html += `<path d="${buildStepPath(g2Data)}" class="curve-step curve-group2" />`;
+
+    // 5. Median Lines
+    html += `<g id="median-group">
+      <!-- G1 Median = 6.50 -->
+      <line x1="${xScale(6.5)}" y1="${yScale(0.5)}" x2="${xScale(6.5)}" y2="${margin.top + height}" class="median-line" stroke="var(--primary)" stroke-width="1.8" />
+      <text x="${xScale(6.5) + 6}" y="${yScale(0.25)}" fill="var(--primary)" font-weight="700" font-size="12">Median: 6.50 mo</text>
+
+      <!-- G2 Median = 5.25 -->
+      <line x1="${xScale(5.25)}" y1="${yScale(0.5)}" x2="${xScale(5.25)}" y2="${margin.top + height}" class="median-line" stroke="var(--control)" stroke-width="1.8" />
+      <text x="${xScale(5.25) + 6}" y="${yScale(0.12)}" fill="var(--control)" font-weight="700" font-size="12">Median: 5.25 mo</text>
+    </g>`;
+
+    // 6. Censored Points (+)
+    html += `<g id="censor-group">`;
+    g1Data.forEach(pt => {
+      if (pt.censor > 0) {
+        const x = xScale(pt.t);
+        const y = yScale(pt.s);
+        const r = 7;
+        html += `
+          <g transform="translate(${x}, ${y})">
+            <line x1="${-r}" y1="0" x2="${r}" y2="0" class="censor-cross" />
+            <line x1="0" y1="${-r}" x2="0" y2="${r}" class="censor-cross" />
+          </g>
+        `;
+      }
+    });
+    html += `</g>`;
+
+    // 7. Interactive Hover Nodes
+    // Group 1 nodes
+    g1Data.forEach((pt, idx) => {
+      if (idx === 0) return;
+      const x = xScale(pt.t);
+      const y = yScale(pt.s);
+      html += `
+        <circle cx="${x}" cy="${y}" r="12" fill="var(--primary)" class="hover-target"
+          onmouseenter="showTooltip(event, 'Group 1 (新藥組)', ${pt.t}, ${pt.s}, ${pt.lower}, ${pt.upper}, ${pt.risk}, ${pt.event}, ${pt.censor}, '${pt.id}')"
+          onmouseleave="hideTooltip()" />
+      `;
+    });
+
+    // Group 2 nodes
+    g2Data.forEach((pt, idx) => {
+      if (idx === 0) return;
+      const x = xScale(pt.t);
+      const y = yScale(pt.s);
+      html += `
+        <circle cx="${x}" cy="${y}" r="12" fill="var(--control)" class="hover-target"
+          onmouseenter="showTooltip(event, 'Group 2 (對照組)', ${pt.t}, ${pt.s}, ${pt.lower}, ${pt.upper}, ${pt.risk}, ${pt.event}, ${pt.censor}, '${pt.id}')"
+          onmouseleave="hideTooltip()" />
+      `;
+    });
+
+    // 8. Legend Inside Chart
+    const legX = margin.left + width - 260;
+    const legY = margin.top + 20;
+    html += `
+      <g transform="translate(${legX}, ${legY})">
+        <rect x="0" y="0" width="240" height="90" rx="8" fill="rgba(255, 255, 255, 0.95)" stroke="#cbd5e1" stroke-width="1" />
+        <text x="14" y="22" font-size="12" font-weight="700" fill="#1e293b">治療組別 (Treatment Group)</text>
+        
+        <!-- G1 item -->
+        <line x1="14" y1="42" x2="44" y2="42" stroke="var(--primary)" stroke-width="3.5" />
+        <text x="52" y="46" font-size="12" font-weight="600" fill="#1e293b">Group 1 (新藥組, n=6)</text>
+
+        <!-- G2 item -->
+        <line x1="14" y1="68" x2="44" y2="68" stroke="var(--control)" stroke-width="3.5" stroke-dasharray="6 4" />
+        <text x="52" y="72" font-size="12" font-weight="600" fill="#1e293b">Group 2 (對照組, n=6)</text>
+      </g>
+    `;
+
+    // 9. Statistics Info Box on bottom-left
+    const boxX = margin.left + 20;
+    const boxY = margin.top + height - 150;
+    html += `
+      <g transform="translate(${boxX}, ${boxY})">
+        <rect x="0" y="0" width="220" height="135" rx="8" fill="rgba(255, 255, 255, 0.95)" stroke="#cbd5e1" stroke-width="1" />
+        <text x="12" y="20" font-size="12" font-weight="700" fill="#0f172a">統計檢定 (Statistical Tests):</text>
+        <text x="12" y="42" font-size="11" fill="#334155">• Log-Rank &chi;² = 2.30 (df = 1)</text>
+        <text x="12" y="60" font-size="11" font-weight="600" fill="#334155">• p-value = 0.1291 (NS)</text>
+        <text x="12" y="82" font-size="11" fill="#334155">• Hazard Ratio (HR) = 0.356</text>
+        <text x="12" y="100" font-size="11" fill="#334155">  95% CI: [0.087, 1.452]</text>
+        <text x="12" y="122" font-size="11" fill="#64748b">設限標記: +</text>
+      </g>
+    `;
+
+    svg.innerHTML = html;
+  }
+
+  // Populate Risk Table
+  function renderRiskTable() {
+    const g1Container = document.getElementById('risk-cells-g1');
+    const g2Container = document.getElementById('risk-cells-g2');
+
+    let g1Html = '';
+    let g2Html = '';
+
+    riskTimes.forEach((t, i) => {
+      g1Html += `<div class="risk-cell" style="color: var(--primary);">${g1Risk[i]}</div>`;
+      g2Html += `<div class="risk-cell" style="color: var(--control);">${g2Risk[i]}</div>`;
+    });
+
+    g1Container.innerHTML = g1Html;
+    g2Container.innerHTML = g2Html;
+  }
+
+  // Tooltip Logic
+  function showTooltip(e, group, time, s, lower, upper, risk, event, censor, id) {
+    const rect = chartWrapper.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    let typeText = event > 0 ? `<span style="color: #ef4444; font-weight: 700;">終點事件 (${event} 人)</span>` : `<span style="color: #10b981; font-weight: 700;">受試者設限 (Censored)</span>`;
+
+    tooltip.innerHTML = `
+      <div class="tt-title">${group} ｜ ${time} 個月</div>
+      <div><strong>受試者 ID:</strong> ${id}</div>
+      <div><strong>狀態:</strong> ${typeText}</div>
+      <div><strong>存活率 S(t):</strong> ${(s * 100).toFixed(1)}%</div>
+      <div><strong>95% CI:</strong> [${(lower * 100).toFixed(1)}%, ${(upper * 100).toFixed(1)}%]</div>
+      <div><strong>在險受試者:</strong> ${risk} 人</div>
+    `;
+
+    tooltip.style.display = 'block';
+    tooltip.style.left = `${Math.min(x + 15, rect.width - 180)}px`;
+    tooltip.style.top = `${Math.max(y - 80, 10)}px`;
+  }
+
+  function hideTooltip() {
+    tooltip.style.display = 'none';
+  }
+
+  // Toggles
+  function toggleCI() {
+    const checked = document.getElementById('toggle-ci').checked;
+    document.getElementById('ci-g1').style.display = checked ? 'block' : 'none';
+    document.getElementById('ci-g2').style.display = checked ? 'block' : 'none';
+  }
+
+  function toggleMedian() {
+    const checked = document.getElementById('toggle-median').checked;
+    document.getElementById('median-group').style.display = checked ? 'block' : 'none';
+  }
+
+  function toggleCensor() {
+    const checked = document.getElementById('toggle-censor').checked;
+    document.getElementById('censor-group').style.display = checked ? 'block' : 'none';
+  }
+
+  function exportDataCSV() {
+    const csvContent = "data:text/csv;charset=utf-8," + 
+      "Group,Time,N_Risk,N_Event,N_Censor,Survival,Std_Error,Lower_95_CI,Upper_95_CI\n" +
+      "Group 1 (New Drug),4.5,6,1,0,0.8333,0.1826,0.5827,1.0\n" +
+      "Group 1 (New Drug),5.0,5,1,0,0.6667,0.2887,0.3786,1.0\n" +
+      "Group 1 (New Drug),6.0,4,0,1,0.6667,0.2887,0.3786,1.0\n" +
+      "Group 1 (New Drug),6.5,3,1,0,0.4444,0.5000,0.1668,1.0\n" +
+      "Group 1 (New Drug),7.0,2,0,1,0.4444,0.5000,0.1668,1.0\n" +
+      "Group 1 (New Drug),7.2,1,0,1,0.4444,0.5000,0.1668,1.0\n" +
+      "Group 2 (Control),4.3,6,1,0,0.8333,0.1826,0.5827,1.0\n" +
+      "Group 2 (Control),5.0,5,2,0,0.5000,0.4082,0.2246,1.0\n" +
+      "Group 2 (Control),5.5,3,1,0,0.3333,0.5774,0.1075,1.0\n" +
+      "Group 2 (Control),6.4,2,1,0,0.1667,0.9129,0.0278,0.9974\n" +
+      "Group 2 (Control),7.0,1,1,0,0.0000,Inf,NA,NA\n";
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "kaplan_meier_survival_data.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  // Initial call
+  renderChart();
+  renderRiskTable();
+</script>
+
+</body>
+</html>

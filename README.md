@@ -3,6 +3,7 @@
 ![Python](https://img.shields.io/badge/Python-3.9+-3776AB?style=flat&logo=python&logoColor=white)
 ![Data Analysis](https://img.shields.io/badge/Data%20Analysis-Pandas%20%7C%20SciPy-blue)
 ![Visualization](https://img.shields.io/badge/Visualization-Matplotlib%20%7C%20Seaborn-orange)
+![R](https://img.shields.io/badge/R-4.4+-276DC3?style=flat&logo=r&logoColor=white)
 ![Status](https://img.shields.io/badge/Status-Completed-success)
 
 本儲存庫收錄生物統計實習專案之臨床醫學數據分析、無母數統計檢定（Non-parametric Tests）、流行病學田野調查報告，以及 Python 自動化分析與報表生成腳本。
@@ -13,6 +14,16 @@
 
 ```plaintext
 biostat-class/
+├── 1029生統/                               # 新藥臨床試驗 Kaplan-Meier 存活分析專案
+│   ├── Survival test example.xlsx          # 新藥試驗原始追蹤數據集 (N=12)
+│   ├── km_survival_analysis.R              # R 存活分析、Log-Rank 檢定與出版級繪圖腳本
+│   ├── kaplan_meier_curve.png              # 300 DPI 出版級存活曲線圖 (含 Number at Risk 表格)
+│   ├── kaplan_meier_curve.pdf              # 向量圖檔 (高解析論文發表用)
+│   ├── kaplan_meier_curve_with_CI.png      # 附 95% 信賴區間帶 (CI) 存活曲線圖
+│   ├── kaplan_meier_interactive.html       # 現代化互動式存活分析網頁報告
+│   ├── survival_summary_table.csv          # 詳細存活生命表 (Life Table)
+│   └── README.md                           # 存活分析專案說明與生統解讀
+│
 ├── 1022 bio/                               # 流行病學調查專案
 │   ├── 橘郡異常事件綜合調查報告.docx/.pdf    # 整合版流行病學與水質污染調查報告
 │   ├── 橘郡異常事件調查報告.md/.docx        # 居民流行病學調查分析
@@ -67,6 +78,14 @@ biostat-class/
 ### 4. 糖尿病臨床指標關聯分析 (DM Clinical Analysis)
 - 探索糖尿病患者之性別、年齡組別在各項生化與臨床指標上的中位數與四分位距（IQR）分佈。
 
+### 5. 新藥臨床試驗存活分析 (Kaplan-Meier Survival Analysis & Log-Rank Test)
+- **分析標的**：新藥治療組（Group 1, $n=6$）與對照組（Group 2, $n=6$）之整體存活期（Overall Survival）。
+- **分析方法**：
+  - **Kaplan-Meier 乘積極限法**：估算各時間點之存活機率 $\hat{S}(t)$ 與 Greenwood 標準誤。
+  - **Log-Rank 檢定**：檢定兩組存活曲線差異（$\chi^2 = 2.30, p = 0.1291$）。
+  - **Cox 等比例風險回歸**：計算風險比 Hazard Ratio（$HR = 0.356$，降低 64.4% 事件風險）。
+- **核心發現**：新藥組中位存活時間為 6.50 個月，明顯優於對照組的 5.25 個月（延長 +1.25 個月），且研究截止時仍有 44.4% 受試者存活設限。
+
 ---
 
 ## 📊 統計結果摘要 (Summary of Statistical Findings)
@@ -76,6 +95,7 @@ biostat-class/
 | **HER2 表現量** | Mann-Whitney U | 乳癌 vs 肺腺癌 | 8 vs 9 | 446.50 vs 118.00 | $U = 1.0$ | **0.0009** | 極顯著 ($r = 0.818$) |
 | **職業選手薪資** | Kruskal-Wallis | NFL / NBA / MLB / WNBA | 各 10 | \$52.8M / \$46.6M / \$38.5M / \$0.2M | $H = 27.611$ | **< 0.001** | 極顯著 ($\eta^2 = 0.684$) |
 | **血型與身高** | Kruskal-Wallis | A / B / O / AB | 12 / 10 / 9 / 13 | 173.5 / 173.0 / 170.0 / 172.0 (cm) | $H = 1.507$ | 0.6806 | 不顯著 ($\eta^2 = 0.000$) |
+| **新藥存活分析** | Kaplan-Meier / Log-Rank | 新藥組 vs 對照組 | 6 vs 6 | 中位 6.50m vs 5.25m | $\chi^2 = 2.30$ | **0.1291** | HR = 0.356 (小樣本未達顯著) |
 
 ---
 
